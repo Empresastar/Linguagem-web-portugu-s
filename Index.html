@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor de Código PT-BR v4 - Edição Completa</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/editor/editor.main.min.css">
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --topo: #252526;
+            --azul: #007acc;
+            --texto-cinza: #888;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--bg-dark);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Barra de Ferramentas Superior */
+        .barra-ferramentas {
+            padding: 10px 20px;
+            background: var(--topo);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .logo { font-weight: bold; color: var(--azul); font-size: 18px; }
+        .botoes { display: flex; gap: 12px; }
+
+        button {
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 13px;
+            transition: 0.3s;
+        }
+
+        .btn-ajuda { background: #444; color: white; }
+        .btn-ajuda:hover { background: #555; }
+        .btn-converter { background: var(--azul); color: white; }
+        .btn-converter:hover { background: #005a9e; }
+
+        /* Área de Trabalho */
+        .area-trabalho {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #editor-container { width: 50%; height: 100%; border-right: 2px solid #333; }
+
+        .painel-resultado {
+            width: 50%;
+            background: #151515;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label-saida {
+            padding: 10px 15px;
+            background: #2d2d2d;
+            font-size: 11px;
+            color: var(--texto-cinza);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #codigo-final {
+            flex: 1;
+            padding: 20px;
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #9cdcfe;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Janela de Ajuda (Modal) */
+        #modal-ajuda {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center; align-items: center;
+        }
+
+        .modal-conteudo {
+            background: #252526;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid #444;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h2 { margin-top: 0; color: var(--azul); border-bottom: 2px solid #333; padding-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #333; }
+        th { color: var(--azul); text-transform: uppercase; font-size: 12px; }
+        .tipo-tag { font-size: 10px; background: #333; padding: 3px 7px; border-radius: 4px; color: #aaa; font-weight: normal; }
+        tr:hover { background: #2d2d2d; }
+    </style>
+</head>
+<body>
+
+<div class="barra-ferramentas">
+    <div class="logo">🚀 MEU EDITOR PT-BR</div>
+    <div class="botoes">
+        <button class="btn-ajuda" onclick="abrirAjuda()">❓ GUIA DE TRADUÇÃO</button>
+        <button class="btn-converter" onclick="converterCodigo()">CONVERTER PARA INGLÊS ➔</button>
+    </div>
+</div>
+
+<div class="area-trabalho">
+    <div id="editor-container"></div>
+    <div class="painel-resultado">
+        <div class="label-saida">Código Original (Pronto para Uso)</div>
+        <pre id="codigo-final">Clique no botão para traduzir...</pre>
+    </div>
+</div>
+
+<div id="modal-ajuda">
+    <div class="modal-conteudo">
+        <h2>📚 Guia de Tradução Completo</h2>
+        <p>Escreva em português usando os termos abaixo. O tradutor cuidará do resto!</p>
+        <table>
+            <thead>
+                <tr><th>Tipo</th><th>Português</th><th>Inglês (Original)</th></tr>
+            </thead>
+            <tbody id="tabela-ajuda">
+                </tbody>
+        </table>
+        <br>
+        <button class="btn-converter" style="width: 100%;" onclick="fecharAjuda()">FECHAR GUIA</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+<script>
+    let editor;
+
+    // O DICIONÁRIO GIGANTE E COMPLETO
+    const dicionario = [
+        // JAVASCRIPT
+        { pt: "funcao", en: "function", tipo: "JS" },
+        { pt: "variavel", en: "let", tipo: "JS" },
+        { pt: "constante", en: "const", tipo: "JS" },
+        { pt: "se", en: "if", tipo: "JS" },
+        { pt: "senao", en: "else", tipo: "JS" },
+        { pt: "enquanto", en: "while", tipo: "JS" },
+        { pt: "para", en: "for", tipo: "JS" },
+        { pt: "retornar", en: "return", tipo: "JS" },
+        { pt: "imprimir", en: "console.log", tipo: "JS" },
+        { pt: "alerta", en: "alert", tipo: "JS" },
+        { pt: "pegarId", en: "getElementById", tipo: "JS" },
+        { pt: "pegarClasse", en: "getElementsByClassName", tipo: "JS" },
+        { pt: "escutarEvento", en: "addEventListener", tipo: "JS" },
+        { pt: "valor", en: "value", tipo: "JS" },
+        { pt: "textoInterno", en: "innerText", tipo: "JS" },
+        { pt: "verdadeiro", en: "true", tipo: "JS" },
+        { pt: "falso", en: "false", tipo: "JS" },
+
+        // HTML
+        { pt: "corpo", en: "body", tipo: "HTML" },
+        { pt: "cabecalho", en: "header", tipo: "HTML" },
+        { pt: "rodape", en: "footer", tipo: "HTML" },
+        { pt: "divisao", en: "div", tipo: "HTML" },
+        { pt: "titulo1", en: "h1", tipo: "HTML" },
+        { pt: "titulo2", en: "h2", tipo: "HTML" },
+        { pt: "paragrafo", en: "p", tipo: "HTML" },
+        { pt: "botao", en: "button", tipo: "HTML" },
+        { pt: "link", en: "a", tipo: "HTML" },
+        { pt: "imagem", en: "img", tipo: "HTML" },
+        { pt: "entrada", en: "input", tipo: "HTML" },
+        { pt: "lista", en: "ul", tipo: "HTML" },
+        { pt: "item", en: "li", tipo: "HTML" },
+        { pt: "classe", en: "class", tipo: "HTML" },
+        { pt: "identificador", en: "id", tipo: "HTML" },
+        { pt: "fonte", en: "src", tipo: "HTML" },
+        { pt: "destino", en: "href", tipo: "HTML" },
+        { pt: "clique", en: "onclick", tipo: "HTML" },
+
+        // CSS
+        { pt: "estilo", en: "style", tipo: "CSS" },
+        { pt: "cor", en: "color", tipo: "CSS" },
+        { pt: "fundo", en: "background", tipo: "CSS" },
+        { pt: "largura", en: "width", tipo: "CSS" },
+        { pt: "altura", en: "height", tipo: "CSS" },
+        { pt: "margem", en: "margin", tipo: "CSS" },
+        { pt: "preenchimento", en: "padding", tipo: "CSS" },
+        { pt: "borda", en: "border", tipo: "CSS" },
+        { pt: "arredondar", en: "border-radius", tipo: "CSS" },
+        { pt: "tamanho-fonte", en: "font-size", tipo: "CSS" },
+        { pt: "alinhar-texto", en: "text-align", tipo: "CSS" },
+        { pt: "exibir", en: "display", tipo: "CSS" },
+        { pt: "opacidade", en: "opacity", tipo: "CSS" },
+        { pt: "sombra", en: "box-shadow", tipo: "CSS" },
+        { pt: "transicao", en: "transition", tipo: "CSS" },
+        { pt: "ponteiro", en: "cursor", tipo: "CSS" }
+    ];
+
+    // Popula a tabela de ajuda
+    const tabela = document.getElementById('tabela-ajuda');
+    dicionario.forEach(item => {
+        tabela.innerHTML += `<tr>
+            <td><span class="tipo-tag">${item.tipo}</span></td>
+            <td><strong>${item.pt}</strong></td>
+            <td><code>${item.en}</code></td>
+        </tr>`;
+    });
+
+    // Configura o Editor
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: "<corpo>\n  <titulo1>Bem-vindo!</titulo1>\n  <botao clique='mudar()'>Mudar Cor</botao>\n</corpo>\n\n<estilo>\n  corpo { fundo: #121212; cor: branco; alinhar-texto: centro; }\n  botao { arredondar: 8px; preenchimento: 10px; ponteiro: pointer; }\n</estilo>\n\n<script>\n  funcao mudar() {\n    imprimir('O botão foi clicado!');\n    alerta('Sucesso!');\n  }\n<\/script>",
+            language: 'html',
+            theme: 'vs-dark',
+            fontSize: 16,
+            automaticLayout: true
+        });
+    });
+
+    // Função de Conversão
+    function converterCodigo() {
+        let codigoPt = editor.getValue();
+        let codigoEn = codigoPt;
+
+        // Ordena por tamanho descendente para não quebrar termos menores dentro de maiores
+        const listaOrdenada = [...dicionario].sort((a, b) => b.pt.length - a.pt.length);
+
+        listaOrdenada.forEach(item => {
+            const regex = new RegExp("\\b" + item.pt + "\\b", "gi");
+            codigoEn = codigoEn.replace(regex, item.en);
+        });
+
+        document.getElementById('codigo-final').textContent = codigoEn;
+    }
+
+    // Modal Handlers
+    function abrirAjuda() { document.getElementById('modal-ajuda').style.display = 'flex'; }
+    function fecharAjuda() { document.getElementById('modal-ajuda').style.display = 'none'; }
+</script>
+
+</body>
+  </html>
+  
